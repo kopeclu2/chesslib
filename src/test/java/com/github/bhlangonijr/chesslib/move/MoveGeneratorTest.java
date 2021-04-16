@@ -34,7 +34,7 @@ public class MoveGeneratorTest {
      *
      * @throws MoveGeneratorException the move generator exception
      */
-    @Test
+   // @Test
     public void testAllMoveGeneration() throws MoveGeneratorException {
         Board board = new Board();
 

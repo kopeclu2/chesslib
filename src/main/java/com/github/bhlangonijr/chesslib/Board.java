@@ -1153,7 +1153,6 @@ public class Board implements Cloneable, BoardEvent {
                 }
             }
         }
-        /*
         if (fromType.equals(PieceType.KING)) {
             if (squareAttackedBy(move.getTo(), side.flip()) != 0L) {
                 return false;
@@ -1195,8 +1194,8 @@ public class Board implements Cloneable, BoardEvent {
 
         return pawns == 0L ||
                 (Bitboard.getPawnAttacks(side, kingSq) & pawns) == 0L;
-             */
-        return true;
+
+        //return true;
 
     }
     /*

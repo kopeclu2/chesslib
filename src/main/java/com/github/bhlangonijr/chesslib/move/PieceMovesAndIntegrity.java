@@ -48,8 +48,14 @@ public class PieceMovesAndIntegrity {
 
     public void setMoves(List<Move> moves) {
         this.pieceSquareMoves.setMoves(moves);
-        this.ownIntegrity = maxMoves - moves.size();
+        this.ownIntegrity = maxMoves - moves.size()-1;
     }
 
+    public PieceSquareMoves getPieceSquareMoves() {
+        return pieceSquareMoves;
+    }
 
+    public Integer getMaxMoves() {
+        return maxMoves;
+    }
 }
