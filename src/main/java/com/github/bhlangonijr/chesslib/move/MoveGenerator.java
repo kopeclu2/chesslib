@@ -18,8 +18,10 @@ package com.github.bhlangonijr.chesslib.move;
 
 import com.github.bhlangonijr.chesslib.*;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.github.bhlangonijr.chesslib.Bitboard.bitScanForward;
 import static com.github.bhlangonijr.chesslib.Bitboard.extractLsb;
@@ -299,6 +301,58 @@ public class MoveGenerator {
         }
     }
 
+    public static List<Move> generateMovesForPiece(Board board, Square square, Side side, PieceType pieceType) {
+        // Make Piece instance
+        Piece piece = Piece.make(side, pieceType);
+        // MAYBE get all pieces
+        long pieces = board.getBitboard(piece);
+        // get occupied -> occupation of the board, but its LONG "IDK"
+        long occpuied = ~board.getBitboard(piece.getPieceSide());
+        // Init liost of moves for piece
+        List<Move> movesForPiece = new ArrayList<>();
+        // Are some pieces found
+        while (pieces != 0L) {
+            int sourceIndex = bitScanForward(pieces);
+            // MAYBE extract this pieces from pieces
+            pieces = extractLsb(pieces);
+            // Get Square
+            Square sqSource = Square.squareAt(sourceIndex);
+            // Is this square what we want for this piece ?
+            // Square must eq @param square, if true, this is EXACT piece what we want
+            if (!sqSource.equals(square)) {
+                // IF NOT equals, go to next piece of this type
+                continue;
+            }
+            long attacks = 0L;
+            // GET attacks for piece by PIECE.type
+            switch (pieceType){
+                case PAWN:
+                    attacks = Bitboard.getPawnMoves(side, sqSource, board.getBitboard());
+                    break;
+                case KNIGHT:
+                    attacks = Bitboard.getKnightAttacks(sqSource,  occpuied);
+                    break;
+                case BISHOP:
+                    attacks = Bitboard.getBishopAttacks(board.getBitboard(), sqSource) & occpuied;
+                    break;
+                case ROOK:
+                    attacks = Bitboard.getRookAttacks(board.getBitboard(), sqSource) & occpuied;
+                    break;
+            }
+            // Iterate attacks
+            while (attacks != 0L) {
+                int attackIndex = bitScanForward(attacks);
+                // DELETE attack from attacks
+                attacks = extractLsb(attacks);
+                // Get Square
+                Square sqTarget = Square.squareAt(attackIndex);
+                // Finally add new move to move list for piece
+                movesForPiece.add(new Move(sqSource, sqTarget, Piece.NONE));
+            }
+        }
+        return movesForPiece;
+    }
+
     /**
      * Generate all pseudo-legal moves
      *
@@ -314,7 +368,7 @@ public class MoveGenerator {
         generateRookMoves(board, moves);
         generateQueenMoves(board, moves);
         generateKingMoves(board, moves);
-        generateCastleMoves(board, moves);
+        //generateCastleMoves(board, moves);
         return moves;
     }
 
@@ -336,6 +390,42 @@ public class MoveGenerator {
         return moves;
     }
 
+    public static boolean integrityLegalMove(Board board, Move move, PieceMovesAndIntegrity pieceMovesAndIntegrity) {
+
+        //Get from piece
+        final Piece fromPiece = board.getPiece(move.getFrom());
+
+        // Is piece on dest square ? If not Piece.NONE
+        final Piece capturedPiece = board.getPiece(move.getTo());
+
+        if (Piece.NONE.equals(fromPiece)) {
+            throw new RuntimeException("From piece cannot be null");
+        }
+
+        // If Piece.NONE and Piece from and Piece dest have diff color, it means strange integrity.
+        // Count++ integrity limit and return false, it means move gonna be deleted
+        if (!capturedPiece.equals(Piece.NONE) && !fromPiece.getPieceSide().equals(capturedPiece.getPieceSide())) {
+           pieceMovesAndIntegrity.incrementIntegrity();
+           return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Generate move integrity limit with moves
+     */
+    public static PieceMovesAndIntegrity generateLimitMoves(Board board, PieceSquareMoves pieceSquareMoves) {
+        // Creeate instance of Piece with Square and all posiuble moves
+        PieceMovesAndIntegrity pieceMovesAndIntegrity = new PieceMovesAndIntegrity(pieceSquareMoves);
+        // Get all moves for Piece
+        List<Move> moves = pieceSquareMoves.getMoves();
+        // Test for legal Move, Move.to must be free. Or check Strange integrity. Delete move if not legal
+        moves.removeIf(m -> !integrityLegalMove(board, m, pieceMovesAndIntegrity));
+        // Set only legal moves to entity, and recalculate own initegriy maxMove for piece - legalMoves.size
+        pieceMovesAndIntegrity.setMoves(moves);
+        return pieceMovesAndIntegrity;
+    }
     /**
      * Generate Legal Moves
      *

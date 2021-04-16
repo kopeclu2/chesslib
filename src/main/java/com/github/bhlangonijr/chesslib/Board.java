@@ -17,14 +17,14 @@
 package com.github.bhlangonijr.chesslib;
 
 import com.github.bhlangonijr.chesslib.game.GameContext;
-import com.github.bhlangonijr.chesslib.move.Move;
-import com.github.bhlangonijr.chesslib.move.MoveGenerator;
-import com.github.bhlangonijr.chesslib.move.MoveList;
+import com.github.bhlangonijr.chesslib.move.*;
+import com.github.bhlangonijr.chesslib.util.PieceAndSquare;
 import com.github.bhlangonijr.chesslib.util.XorShiftRandom;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.github.bhlangonijr.chesslib.Bitboard.extractLsb;
@@ -129,6 +129,14 @@ public class Board implements Cloneable, BoardEvent {
                     Square.encode(Rank.RANK_6, sq.getFile());
         }
         return ep;
+    }
+
+    private static IntStream zeroToSeven() {
+        return IntStream.iterate(0, i -> i + 1).limit(8);
+    }
+
+    private static IntStream sevenToZero() {
+        return IntStream.iterate(7, i -> i - 1).limit(8);
     }
 
     /**
@@ -436,7 +444,6 @@ public class Board implements Cloneable, BoardEvent {
      * @return piece
      */
     public Piece getPiece(Square sq) {
-
         return occupation[sq.ordinal()];
     }
 
@@ -676,6 +683,18 @@ public class Board implements Cloneable, BoardEvent {
     }
 
     /**
+     * Put piece only if 3 pices can go to same square as dest Square sq
+     *
+     * @param piece
+     * @param sq
+     */
+    public boolean setPieceCzechChess(Piece piece, Square sq) {
+        List<Move> moves = legalMoves();
+        List<Move> collect = moves.stream().filter(m -> m.getTo().value().equals(sq.value())).collect(Collectors.toList());
+        return collect.size() >= 3;
+    }
+
+    /**
      * remove a piece from a given square
      *
      * @param piece the piece
@@ -903,6 +922,19 @@ public class Board implements Cloneable, BoardEvent {
         return pieces;
     }
 
+    /**
+     * Get all pieces on board without NONE
+     */
+    public List<PieceAndSquare> getAllPiecesOnBoard() {
+        List<PieceAndSquare> pieces = new ArrayList<>();
+        for (int i = 0; i < occupation.length; i++) {
+            if (Objects.nonNull(occupation[i]) && !Piece.NONE.equals(occupation[i])) {
+                pieces.add(new PieceAndSquare(occupation[i],Square.squareAt(i)));
+            }
+        }
+        return pieces;
+    }
+
     public BoardEventType getType() {
         return BoardEventType.ON_LOAD;
     }
@@ -1062,6 +1094,8 @@ public class Board implements Cloneable, BoardEvent {
         return false;
     }
 
+
+
     /**
      * Verify if the move to be played leaves the resulting board in a legal position
      *
@@ -1119,6 +1153,7 @@ public class Board implements Cloneable, BoardEvent {
                 }
             }
         }
+        /*
         if (fromType.equals(PieceType.KING)) {
             if (squareAttackedBy(move.getTo(), side.flip()) != 0L) {
                 return false;
@@ -1160,6 +1195,35 @@ public class Board implements Cloneable, BoardEvent {
 
         return pawns == 0L ||
                 (Bitboard.getPawnAttacks(side, kingSq) & pawns) == 0L;
+             */
+        return true;
+
+    }
+    /*
+
+     */
+    public PieceSquareMoves generateMovesForPiece(Piece piece, Square square, Side side ) {
+        List<Move> moves = MoveGenerator.generateMovesForPiece(this, square, side, piece.getPieceType());
+        return new PieceSquareMoves(piece, square, moves);
+    }
+
+    /**
+     * Generate full integrity moves and pieces info for calculating AI
+     * MAIN METHOD FOR CALCULATING INTEGRITY
+     * @return
+     */
+    public List<PieceMovesAndIntegrity> generateAllPiecesIntegrity() {
+        List<PieceAndSquare> allPiecesOnBoard = getAllPiecesOnBoard();
+        return allPiecesOnBoard.stream()
+                .map(p -> generateMovesForPiece(p.getPiece(), p.getSquare(), p.getPiece().getPieceSide()))
+                .map(this::generatePieceMoveIntegrity)
+                .collect(Collectors.toList());
+    }
+    /**
+     * Generate integrity limits with legal moves
+     */
+    public PieceMovesAndIntegrity generatePieceMoveIntegrity(PieceSquareMoves pieceSquareMoves) {
+        return MoveGenerator.generateLimitMoves(this, pieceSquareMoves);
     }
 
     /**
@@ -1395,7 +1459,6 @@ public class Board implements Cloneable, BoardEvent {
      * @return list of only legal moves
      */
     public List<Move> legalMoves() {
-
         return MoveGenerator.generateLegalMoves(this);
     }
 
@@ -1561,14 +1624,6 @@ public class Board implements Cloneable, BoardEvent {
         });
 
         return sb.toString();
-    }
-
-    private static IntStream zeroToSeven() {
-        return IntStream.iterate(0, i -> i + 1).limit(8);
-    }
-
-    private static IntStream sevenToZero() {
-        return IntStream.iterate(7, i -> i - 1).limit(8);
     }
 
     @Override

@@ -178,4 +178,19 @@ public enum Piece {
     public Side getPieceSide() {
         return pieceSide.get(this);
     }
+
+    // Generate max move for table integrity counting
+    public static Integer getPieceMaxMoveInteger(PieceType pieceType) {
+        int maxValues = 14;
+        switch (pieceType) {
+            case PAWN:
+            case KNIGHT:
+                maxValues = 8;
+                break;
+            case BISHOP:
+                maxValues = 13;
+                break;
+        }
+        return maxValues;
+    }
 }
