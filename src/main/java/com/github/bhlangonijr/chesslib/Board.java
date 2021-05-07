@@ -26,6 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.github.bhlangonijr.chesslib.Bitboard.extractLsb;
 import static com.github.bhlangonijr.chesslib.Constants.emptyMove;
@@ -162,6 +163,133 @@ public class Board implements Cloneable, BoardEvent {
         return doMove(move, false);
     }
 
+
+    public boolean doCzechMove(final Move move) {
+
+        Piece movingPiece = getPiece(move.getFrom());
+        Side side = getSideToMove();
+
+        MoveBackup backupMove = new MoveBackup(this, move);
+        final boolean isCastle = context.isCastleMove(move);
+
+        incrementalHashKey ^= getSideKey(getSideToMove());
+        if (getEnPassantTarget() != Square.NONE) {
+            incrementalHashKey ^= getEnPassantKey(getEnPassantTarget());
+        }
+        /*
+        if (PieceType.KING.equals(movingPiece.getPieceType())) {
+            if (isCastle) {
+                if (context.hasCastleRight(move, getCastleRight(side))) {
+                    CastleRight c = context.isKingSideCastle(move) ? CastleRight.KING_SIDE :
+                            CastleRight.QUEEN_SIDE;
+                    Move rookMove = context.getRookCastleMove(side, c);
+                    movePiece(rookMove, backupMove);
+                } else {
+                    return false;
+                }
+            }
+            if (getCastleRight(side) != CastleRight.NONE) {
+                incrementalHashKey ^= getCastleRightKey(side);
+                getCastleRight().put(side, CastleRight.NONE);
+            }
+        } else if (PieceType.ROOK == movingPiece.getPieceType()
+                && CastleRight.NONE != getCastleRight(side)) {
+            final Move oo = context.getRookoo(side);
+            final Move ooo = context.getRookooo(side);
+
+            if (move.getFrom() == oo.getFrom()) {
+                if (CastleRight.KING_AND_QUEEN_SIDE == getCastleRight(side)) {
+                    incrementalHashKey ^= getCastleRightKey(side);
+                    getCastleRight().put(side, CastleRight.QUEEN_SIDE);
+                    incrementalHashKey ^= getCastleRightKey(side);
+                } else if (CastleRight.KING_SIDE == getCastleRight(side)) {
+                    incrementalHashKey ^= getCastleRightKey(side);
+                    getCastleRight().put(side, CastleRight.NONE);
+                }
+            } else if (move.getFrom() == ooo.getFrom()) {
+                if (CastleRight.KING_AND_QUEEN_SIDE == getCastleRight(side)) {
+                    incrementalHashKey ^= getCastleRightKey(side);
+                    getCastleRight().put(side, CastleRight.KING_SIDE);
+                    incrementalHashKey ^= getCastleRightKey(side);
+                } else if (CastleRight.QUEEN_SIDE == getCastleRight(side)) {
+                    incrementalHashKey ^= getCastleRightKey(side);
+                    getCastleRight().put(side, CastleRight.NONE);
+                }
+            }
+        }
+        */
+
+
+        //Piece capturedPiece = movePiece(move, backupMove);
+
+        /*
+        if (PieceType.ROOK == capturedPiece.getPieceType()) {
+            final Move oo = context.getRookoo(side.flip());
+            final Move ooo = context.getRookooo(side.flip());
+            if (move.getTo() == oo.getFrom()) {
+                if (CastleRight.KING_AND_QUEEN_SIDE == getCastleRight(side.flip())) {
+                    incrementalHashKey ^= getCastleRightKey(side.flip());
+                    getCastleRight().put(side.flip(), CastleRight.QUEEN_SIDE);
+                    incrementalHashKey ^= getCastleRightKey(side.flip());
+                } else if (CastleRight.KING_SIDE == getCastleRight(side.flip())) {
+                    incrementalHashKey ^= getCastleRightKey(side.flip());
+                    getCastleRight().put(side.flip(), CastleRight.NONE);
+                }
+            } else if (move.getTo() == ooo.getFrom()) {
+                if (CastleRight.KING_AND_QUEEN_SIDE == getCastleRight(side.flip())) {
+                    incrementalHashKey ^= getCastleRightKey(side.flip());
+                    getCastleRight().put(side.flip(), CastleRight.KING_SIDE);
+                    incrementalHashKey ^= getCastleRightKey(side.flip());
+                } else if (CastleRight.QUEEN_SIDE == getCastleRight(side.flip())) {
+                    incrementalHashKey ^= getCastleRightKey(side.flip());
+                    getCastleRight().put(side.flip(), CastleRight.NONE);
+                }
+            }
+        }
+
+        if (Piece.NONE == capturedPiece) {
+            setHalfMoveCounter(getHalfMoveCounter() + 1);
+        } else {
+            setHalfMoveCounter(0);
+        }
+        */
+        setEnPassantTarget(Square.NONE);
+        setEnPassant(Square.NONE);
+
+        if (PieceType.PAWN == movingPiece.getPieceType()) {
+            if (Math.abs(move.getTo().getRank().ordinal() -
+                    move.getFrom().getRank().ordinal()) == 2) {
+                Piece otherPawn = Piece.make(side.flip(), PieceType.PAWN);
+                setEnPassant(findEnPassant(move.getTo(), side));
+                if (hasPiece(otherPawn, move.getTo().getSideSquares()) &&
+                        verifyNotPinnedPiece(side, getEnPassant(), move.getTo())) {
+                    setEnPassantTarget(move.getTo());
+                    incrementalHashKey ^= getEnPassantKey(getEnPassantTarget());
+                }
+            }
+            setHalfMoveCounter(0);
+        }
+
+        if (side == Side.BLACK) {
+            setMoveCounter(getMoveCounter() + 1);
+        }
+
+        setSideToMove(side.flip());
+        incrementalHashKey ^= getSideKey(getSideToMove());
+
+        if (updateHistory) {
+            getHistory().addLast(getIncrementalHashKey());
+        }
+
+        backup.add(backupMove);
+        //call listeners
+        if (isEnableEvents() && eventListener.get(BoardEventType.ON_MOVE).size() > 0) {
+            for (BoardEventListener evl : eventListener.get(BoardEventType.ON_MOVE)) {
+                evl.onEvent(move);
+            }
+        }
+        return true;
+    }
     /**
      * Execute the move on the board
      *
@@ -185,7 +313,6 @@ public class Board implements Cloneable, BoardEvent {
         if (getEnPassantTarget() != Square.NONE) {
             incrementalHashKey ^= getEnPassantKey(getEnPassantTarget());
         }
-
         if (PieceType.KING.equals(movingPiece.getPieceType())) {
             if (isCastle) {
                 if (context.hasCastleRight(move, getCastleRight(side))) {
@@ -682,17 +809,7 @@ public class Board implements Cloneable, BoardEvent {
         }
     }
 
-    /**
-     * Put piece only if 3 pices can go to same square as dest Square sq
-     *
-     * @param piece
-     * @param sq
-     */
-    public boolean setPieceCzechChess(Piece piece, Square sq) {
-        List<Move> moves = legalMoves();
-        List<Move> collect = moves.stream().filter(m -> m.getTo().value().equals(sq.value())).collect(Collectors.toList());
-        return collect.size() >= 3;
-    }
+
 
     /**
      * remove a piece from a given square
@@ -1153,6 +1270,8 @@ public class Board implements Cloneable, BoardEvent {
                 }
             }
         }
+
+
         if (fromType.equals(PieceType.KING)) {
             if (squareAttackedBy(move.getTo(), side.flip()) != 0L) {
                 return false;
@@ -1213,16 +1332,66 @@ public class Board implements Cloneable, BoardEvent {
      */
     public List<PieceMovesAndIntegrity> generateAllPiecesIntegrity() {
         List<PieceAndSquare> allPiecesOnBoard = getAllPiecesOnBoard();
-        return allPiecesOnBoard.stream()
+        List<PieceMovesAndIntegrity> pieceMovesAndIntegrities = allPiecesOnBoard.stream()
                 .map(p -> generateMovesForPiece(p.getPiece(), p.getSquare(), p.getPiece().getPieceSide()))
                 .map(this::generatePieceMoveIntegrity)
                 .collect(Collectors.toList());
+        return pieceMovesAndIntegrities;
     }
     /**
      * Generate integrity limits with legal moves
      */
     public PieceMovesAndIntegrity generatePieceMoveIntegrity(PieceSquareMoves pieceSquareMoves) {
         return MoveGenerator.generateLimitMoves(this, pieceSquareMoves);
+    }
+
+    /**
+     * Get all squares where user can add pawn
+     * @return
+     */
+    public Collection<Move> whereCanUserPutPawn(List<PieceMovesAndIntegrity> moves, Side side) {
+        List<Move> collect = moves.stream()
+                .filter(p -> p.getPieceSquareMoves().getPiece().getPieceSide().equals(side))
+                .map(m -> m.getPieceSquareMoves().getMoves())
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+
+        Map<Square, Move> moveMap = collect.stream()
+                .filter(m -> setCanPawnCzechChess(collect, m.getTo()))
+                .collect(Collectors.toMap(Move::getTo, m -> m, (oldVal, newVal) -> newVal));
+        return moveMap.values();
+    }
+
+    public List<PieceMovesAndIntegrity> generateAllMovesWithPawns() {
+        List<PieceMovesAndIntegrity> moves = generateAllPiecesIntegrity();
+        List<PieceMovesAndIntegrity> pawnsMoves = Stream.of(
+                new PieceSquareMoves(Piece.WHITE_PAWN, Square.A1, new ArrayList<>(whereCanUserPutPawn(moves, Side.WHITE))),
+                new PieceSquareMoves(Piece.BLACK_PAWN, Square.H1, new ArrayList<>(whereCanUserPutPawn(moves, Side.BLACK)))
+        ).map(this::generatePieceMoveIntegrity)
+                .collect(Collectors.toList());
+        moves.addAll(pawnsMoves);
+        return moves;
+    }
+    /**
+     * Put piece only if 3 pices can go to same square as dest Square sq
+     *
+     * @param
+     * @param sq
+     */
+    public boolean setCanPawnCzechChess(List<Move> moves, Square sq) {
+        List<Move> collect = moves.stream().filter(m -> m.getTo().value().equals(sq.value())).collect(Collectors.toList());
+        return collect.size() >= 3;
+    }
+    /**
+     * Put piece only if 3 pices can go to same square as dest Square sq
+     *
+     * @param piece
+     * @param sq
+     */
+    public boolean setPieceCzechChess(Piece piece, Square sq) {
+        List<Move> moves = legalMoves();
+        List<Move> collect = moves.stream().filter(m -> m.getTo().value().equals(sq.value())).collect(Collectors.toList());
+        return collect.size() >= 3;
     }
 
     /**

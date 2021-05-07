@@ -2,7 +2,9 @@ package com.github.bhlangonijr.chesslib.czechchess;
 
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Piece;
+import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.Square;
+import com.github.bhlangonijr.chesslib.move.Move;
 import com.github.bhlangonijr.chesslib.move.PieceMovesAndIntegrity;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,5 +33,20 @@ public class BoardCzechChessTest {
         b.loadFromFen(fe);
         List<PieceMovesAndIntegrity> pieceMovesAndIntegrities = b.generateAllPiecesIntegrity();
         System.out.println();
+    }
+
+    @Test
+    public void testMove() {
+        Board b = new Board();
+        b.loadFromFen("rnb2bnr/8/8/8/8/8/8/RNB2BNR w - - 1 11");
+        String fen = b.getFen();
+        b.doCzechMove(new Move("a1a2", Side.WHITE));
+    }
+    @Test
+    public void testWhereUserCanPutPawns() {
+        Board b = new Board();
+        b.loadFromFen("rnb2bnr/8/8/8/8/8/8/RNB2BNR w - - 1 11");
+        List<PieceMovesAndIntegrity> moves = b.generateAllMovesWithPawns();
+        System.out.println("");
     }
 }
