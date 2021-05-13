@@ -1357,13 +1357,14 @@ public class Board implements Cloneable, BoardEvent {
                 .collect(Collectors.toList());
 
         Map<Square, Move> moveMap = collect.stream()
-                .filter(m -> setCanPawnCzechChess(collect, m.getTo()))
+                .filter(m -> setCanPawnCzechChess(collect, m.getTo(), side))
                 .collect(Collectors.toMap(Move::getTo, m -> m, (oldVal, newVal) -> newVal));
         return moveMap.values();
     }
 
     public List<PieceMovesAndIntegrity> generateAllMovesWithPawns() {
         List<PieceMovesAndIntegrity> moves = generateAllPiecesIntegrity();
+        moves = moves.stream().filter(m -> !m.getPieceSquareMoves().getPiece().getPieceType().equals(PieceType.PAWN)).collect(Collectors.toList());
         List<PieceMovesAndIntegrity> pawnsMoves = Stream.of(
                 new PieceSquareMoves(Piece.WHITE_PAWN, Square.A1, new ArrayList<>(whereCanUserPutPawn(moves, Side.WHITE))),
                 new PieceSquareMoves(Piece.BLACK_PAWN, Square.H1, new ArrayList<>(whereCanUserPutPawn(moves, Side.BLACK)))
@@ -1378,7 +1379,7 @@ public class Board implements Cloneable, BoardEvent {
      * @param
      * @param sq
      */
-    public boolean setCanPawnCzechChess(List<Move> moves, Square sq) {
+    public boolean setCanPawnCzechChess(List<Move> moves, Square sq, Side side) {
         List<Move> collect = moves.stream().filter(m -> m.getTo().value().equals(sq.value())).collect(Collectors.toList());
         return collect.size() >= 3;
     }
